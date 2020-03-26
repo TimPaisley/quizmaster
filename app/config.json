@@ -1,0 +1,8 @@
+{
+  "prefix": "?",
+  "token": "NjkyMjI3NTQwNjc2Mzc4NjU1.XnviJg.XCFUmpmYoU-wEAeHdD-dGaLEbhk",
+  "interval_in_seconds": 15,
+  "question_prefix": ":thinking:",
+  "question_error": ":sick: Oops! Sorry, I encountered an error.",
+  "answer_prefix": ":exploding_head: The correct answer is:"
+}
