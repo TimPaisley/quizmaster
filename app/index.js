@@ -33,9 +33,7 @@ client.on('message', message => {
 
 function getQuestion (channel) {
   const random = Math.floor(Math.random() * questions.length)
-  var question = null;
-  
-  do { question = questions[random]; } while (question.question.includes("<"))
+  var question = questions[random];
 
   sendQuestion(channel, question);
   console.log ("Asking question: ", question);

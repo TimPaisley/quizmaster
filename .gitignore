@@ -116,4 +116,4 @@ dist
 
 # config
 
-./app/config.json
+app/config.json
