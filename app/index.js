@@ -32,40 +32,50 @@ client.on('message', message => {
 });
 
 function getQuestion (channel) {
-  if (previous_question) {
-    answerQuestion (channel, previous_question);
-    previous_question = null;
-  }
-  
   const random = Math.floor(Math.random() * questions.length)
-  const question = questions[random];
+  var question = null;
+  
+  do { question = questions[random]; } while (question.question.includes("<"))
 
   sendQuestion(channel, question);
-  previous_question = question;
   console.log ("Asking question: ", question);
 }
 
-function sendQuestion (c, q) {
-  c.send(
-`
------
-Category: *${q.category} (${q.value})*
-${config.question_prefix} **${q.question.substring(1, q.question.length - 1)}**
------
-`
-  );
+function sendQuestion (channel, question) {
+  const filter = response => {
+    return response.content.toLowerCase().includes(question.answer.toLowerCase());
+  };
+
+  channel.send(formatQuestion(question)).then(() => {
+    channel.awaitMessages(filter, { max: 1, time: (config.interval_in_seconds - 1) * 1000, errors: ['time'] })
+      .then(collected => {
+        channel.send(formatCorrectAnswer(collected.first().author, question.answer));
+      })
+      .catch(collected => {
+        channel.send(formatNoAnswer(question.answer));
+      });
+  });
 }
 
-function answerQuestion (c, q) {
-  c.send(
+function formatQuestion (question) {
+  return `
+-----
+Category: *${question.category} (${question.value})*
+:thinking: **${question.question.substring(1, question.question.length - 1)}**
+-----
 `
-${config.answer_prefix} *${q.answer}*
-`
-  );
 }
 
-function sendError (c) {
-  c.send(config.question_error)
+function formatCorrectAnswer (author, answer) {
+  return `
+:partying_face: ${author} got the correct answer! The answer was *${answer}*.
+`
+}
+
+function formatNoAnswer (answer) {
+  return `
+:confounded: Nobody was correct! The answer was *${answer}*.
+`
 }
 
 client.login(config.token);
