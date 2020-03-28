@@ -4,30 +4,36 @@ const config = require('./config.json');
 const questions = require('../questions.json');
 const client = new Discord.Client();
 
-var flow = null;
-var previous_question = null;
+var activeChannels = {};
 
 client.once('ready', () => {
   console.log('Ready!');
-  flow = null;
-  previous_question = null;
 });
 
 client.on('message', message => {
 	if (message.content === config.prefix + 'start') {
-    message.channel.send('Starting trivia!');
+    message.channel.send("Starting trivia! Type `?stop` to stop.");
 
     getQuestion(message.channel);
-    flow = setInterval(
+    const interval = setInterval(
       function() { getQuestion(message.channel) },
       config.interval_in_seconds * 1000
     );
+
+    activeChannels[message.channel.id] = interval;
+    console.log (`Starting trivia on channel #${message.channel.id}`);
   }
   
   else if (message.content === config.prefix + 'stop') {
-    message.channel.send('Stopping trivia.');
-    clearInterval(flow);
-    flow = null;
+    if (activeChannels[message.channel.id]) {
+      message.channel.send("Stopping trivia. Type `?start` to start again.");
+
+      clearInterval(activeChannels[message.channel.id]);
+      activeChannels[message.channel.id] = null;
+      console.log (`Stopping trivia on channel #${message.channel.id}`);
+    } else {
+      message.channel.send("I'm not running yet! Type `?start` to start.");
+    }
 	}
 });
 
@@ -36,7 +42,7 @@ function getQuestion (channel) {
   var question = questions[random];
 
   sendQuestion(channel, question);
-  console.log ("Asking question: ", question);
+  // console.log ("Asking question: ", question);
 }
 
 function sendQuestion (channel, question) {
@@ -47,10 +53,14 @@ function sendQuestion (channel, question) {
   channel.send(formatQuestion(question)).then(() => {
     channel.awaitMessages(filter, { max: 1, time: (config.interval_in_seconds - 1) * 1000, errors: ['time'] })
       .then(collected => {
-        channel.send(formatCorrectAnswer(collected.first().author, question.answer));
+        if (activeChannels[channel.id]) {
+          channel.send(formatCorrectAnswer(collected.first().author, question.answer));
+        }
       })
       .catch(collected => {
-        channel.send(formatNoAnswer(question.answer));
+        if (activeChannels[channel.id]) {
+          channel.send(formatNoAnswer(question.answer));
+        }
       });
   });
 }
