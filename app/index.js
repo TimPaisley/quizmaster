@@ -35,6 +35,10 @@ client.on('message', message => {
       message.channel.send("I'm not running yet! Type `?start` to start.");
     }
   }
+
+  else if (message.content == config.prefix + 'score') {
+    message.channel.send("No.")
+  }
 });
 
 function getQuestion(channel) {
@@ -47,8 +51,8 @@ function getQuestion(channel) {
 
 function sendQuestion(channel, question) {
   const filter = response => {
-    const guess = response.content.toLowerCase();
-    const answer = cleanAnswer(question.answer);
+    const guess = clean(response.content);
+    const answer = clean(question.answer);
     return guess.includes(answer);
   };
 
@@ -67,7 +71,7 @@ function sendQuestion(channel, question) {
   });
 }
 
-function cleanAnswer(answer) {
+function clean(answer) {
   var words = ["of", "the", "in", "on", "at", "to", "a", "is", "their", "was", "and"];
   var wordRegex = new RegExp('\\b(' + words.join('|') + ')\\b', 'g');
   var charRegex = new RegExp('[^0-9a-zA-Z ]+', 'g');
