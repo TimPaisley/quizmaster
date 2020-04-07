@@ -20,7 +20,7 @@ client.on('message', message => {
       config.interval_in_seconds * 1000
     );
 
-    activeChannels[message.channel.id] = interval;
+    activeChannels[message.channel.id] = { interval: interval, scores: {} };
     console.log(`Starting trivia on channel #${message.channel.id}`);
   }
 
@@ -28,7 +28,7 @@ client.on('message', message => {
     if (activeChannels[message.channel.id]) {
       message.channel.send("Stopping trivia. Type `?start` to start again.");
 
-      clearInterval(activeChannels[message.channel.id]);
+      clearInterval(activeChannels[message.channel.id].interval);
       activeChannels[message.channel.id] = null;
       console.log(`Stopping trivia on channel #${message.channel.id}`);
     } else {
@@ -37,7 +37,12 @@ client.on('message', message => {
   }
 
   else if (message.content == config.prefix + 'score') {
-    message.channel.send("No.")
+    if (activeChannels[message.channel.id]) {
+      const output = formatScores(activeChannels[message.channel.id].scores)
+      message.channel.send(output);
+    } else {
+      message.channel.send("I'm not running yet! Type `?start` to start.");
+    }
   }
 });
 
@@ -51,27 +56,31 @@ function getQuestion(channel) {
 
 function sendQuestion(channel, question) {
   const filter = response => {
-    const guess = clean(response.content);
-    const answer = clean(question.answer);
+    const guess = cleanAnswer(response.content);
+    const answer = cleanAnswer(question.answer);
     return guess.includes(answer);
   };
 
   channel.send(formatQuestion(question)).then(() => {
     channel.awaitMessages(filter, { max: 1, time: (config.interval_in_seconds - 1) * 1000, errors: ['time'] })
       .then(collected => {
-        if (activeChannels[channel.id]) {
-          channel.send(formatCorrectAnswer(collected.first().author, question.answer));
+        if (activeChannels[channel.id].interval) {
+          const user = collected.first().author;
+          channel.send(formatCorrectAnswer(user, question.answer));
+
+          if (isNaN(activeChannels[channel.id].scores[user])) { activeChannels[channel.id].scores[user] = 0; }
+          activeChannels[channel.id].scores[user] += cleanPoints(question.value);
         }
       })
       .catch(collected => {
-        if (activeChannels[channel.id]) {
+        if (activeChannels[channel.id].interval) {
           channel.send(formatNoAnswer(question.answer));
         }
       });
   });
 }
 
-function clean(answer) {
+function cleanAnswer(answer) {
   var words = ["of", "the", "in", "on", "at", "to", "a", "is", "their", "was", "and"];
   var wordRegex = new RegExp('\\b(' + words.join('|') + ')\\b', 'g');
   var charRegex = new RegExp('[^0-9a-zA-Z ]+', 'g');
@@ -83,10 +92,40 @@ function clean(answer) {
     .toLowerCase().trim();
 }
 
+function cleanPoints(points) {
+  clean = points.replace('$', '').replace(',', '');
+  parsed = parseInt(clean);
+
+  if (isNaN(parsed)) { return 100; }
+  return parsed;
+}
+
+function formatScores(scores) {
+  var sortable = [];
+  for (var user in scores) {
+    sortable.push([user, scores[user]])
+  }
+
+  sortable.sort(function (a, b) {
+    return b[1] - a[1];
+  });
+
+  return `
+----
+Top 5:
+1. ${(sortable[0] || []).join(", $")}
+2. ${(sortable[1] || []).join(", $")}
+3. ${(sortable[2] || []).join(", $")}
+4. ${(sortable[3] || []).join(", $")}
+5. ${(sortable[4] || []).join(", $")}
+----
+`
+}
+
 function formatQuestion(question) {
   return `
 -----
-Category: *${question.category} (${question.value})*
+Category: *${question.category} (${question.value || "$100"})*
 :thinking: **${question.question.substring(1, question.question.length - 1)}**
 -----
 `
